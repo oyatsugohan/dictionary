@@ -47,20 +47,36 @@ if menu == "🔍 記事を検索":
     st.header("記事を検索")
     
     if st.session_state.encyclopedia:
-        search_term = st.text_input("🔎 検索キーワードを入力", placeholder="記事のタイトルやカテゴリーで検索")
+        # カテゴリー一覧を取得
+        all_categories = sorted(set(v.get("category", "未分類") for v in st.session_state.encyclopedia.values()))
         
+        col1, col2 = st.columns(2)
+        with col1:
+            search_term = st.text_input("🔎 検索キーワードを入力", placeholder="記事のタイトルで検索")
+        with col2:
+            selected_category = st.selectbox("🏷️ カテゴリーで絞り込み", ["すべて"] + all_categories)
+        
+        # 検索結果のフィルタリング
+        results = st.session_state.encyclopedia.copy()
+        
+        # キーワード検索
         if search_term:
-            results = {k: v for k, v in st.session_state.encyclopedia.items() 
-                      if search_term.lower() in k.lower() or search_term.lower() in v.get("category", "").lower()}
-            
-            if results:
-                st.success(f"{len(results)}件の記事が見つかりました")
-                for title, content in results.items():
-                    with st.expander(f"📄 {title}"):
-                        st.markdown(f"**カテゴリー:** {content.get('category', '未分類')}")
-                        st.markdown(f"**作成日:** {content.get('created', '不明')}")
-                        st.markdown("---")
-                        st.text(content.get('content', ''))
+            results = {k: v for k, v in results.items() 
+                      if search_term.lower() in k.lower()}
+        
+        # カテゴリーで絞り込み
+        if selected_category != "すべて":
+            results = {k: v for k, v in results.items() 
+                      if v.get("category", "未分類") == selected_category}
+        
+        if results:
+            st.success(f"{len(results)}件の記事が見つかりました")
+            for title, content in sorted(results.items()):
+                with st.expander(f"📄 {title}"):
+                    st.markdown(f"**カテゴリー:** {content.get('category', '未分類')}")
+                    st.markdown(f"**作成日:** {content.get('created', '不明')}")
+                    st.markdown("---")
+                    st.text(content.get('content', ''))
             else:
                 st.warning("該当する記事が見つかりませんでした")
         else:
