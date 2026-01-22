@@ -60,7 +60,7 @@ if menu == "🔍 記事を検索":
                         st.markdown(f"**カテゴリー:** {content.get('category', '未分類')}")
                         st.markdown(f"**作成日:** {content.get('created', '不明')}")
                         st.markdown("---")
-                        st.markdown(content.get('content', ''))
+                        st.text(content.get('content', ''))
             else:
                 st.warning("該当する記事が見つかりませんでした")
         else:
@@ -70,7 +70,7 @@ if menu == "🔍 記事を検索":
                     st.markdown(f"**カテゴリー:** {content.get('category', '未分類')}")
                     st.markdown(f"**作成日:** {content.get('created', '不明')}")
                     st.markdown("---")
-                    st.markdown(content.get('content', ''))
+                    st.text(content.get('content', ''))
     else:
         st.info("まだ記事がありません。「新規記事作成」から記事を追加してください。")
 
