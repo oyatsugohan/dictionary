@@ -51,8 +51,15 @@ if menu == "🔍 記事を検索":
     st.header("記事を検索")
     
     if st.session_state.encyclopedia:
-        # カテゴリー一覧を取得
-        all_categories = sorted(set(v.get("category", "未分類") for v in st.session_state.encyclopedia.values()))
+        # カテゴリー一覧を取得（リスト形式にも対応）
+        all_categories = set()
+        for article in st.session_state.encyclopedia.values():
+            cats = article.get("category", ["未分類"])
+            if isinstance(cats, list):
+                all_categories.update(cats)
+            else:
+                all_categories.add(cats)
+        all_categories = sorted(all_categories)
         
         col1, col2 = st.columns(2)
         with col1:
@@ -71,13 +78,19 @@ if menu == "🔍 記事を検索":
         # カテゴリーで絞り込み
         if selected_category != "すべて":
             results = {k: v for k, v in results.items() 
-                      if v.get("category", "未分類") == selected_category}
+                      if selected_category in (v.get("category", ["未分類"]) if isinstance(v.get("category", []), list) else [v.get("category", "未分類")])}
         
         if results:
             st.success(f"{len(results)}件の記事が見つかりました")
             for title, content in sorted(results.items()):
                 with st.expander(f"📄 {title}"):
-                    st.markdown(f"**カテゴリー:** {content.get('category', '未分類')}")
+                    # カテゴリー表示（リスト形式にも対応）
+                    cats = content.get('category', ['未分類'])
+                    if isinstance(cats, list):
+                        category_display = ", ".join(cats)
+                    else:
+                        category_display = cats
+                    st.markdown(f"**カテゴリー:** {category_display}")
                     st.markdown(f"**作成日:** {content.get('created', '不明')}")
                     st.markdown("---")
                     st.text(content.get('content', ''))
@@ -90,8 +103,8 @@ elif menu == "➕ 新規記事作成":
     st.header("新規記事作成")
     
     with st.form("new_article"):
-        title = st.text_input("📝 記事タイトル", placeholder="例: あ")
-        category = st.text_input("🏷️ カテゴリー", placeholder="例: 文字")
+        title = st.text_input("📝 記事タイトル", placeholder="例: Python")
+        category = st.text_input("🏷️ カテゴリー", placeholder="例: プログラミング言語, 技術 (カンマ区切りで複数指定可能)")
         content = st.text_area("✍️ 記事内容", height=300, placeholder="記事の内容を入力してください...")
         
         submitted = st.form_submit_button("✅ 記事を保存")
@@ -104,8 +117,13 @@ elif menu == "➕ 新規記事作成":
             elif not content:
                 st.error("記事内容を入力してください")
             else:
+                # カテゴリーをリスト形式に変換（カンマ区切り）
+                categories = [cat.strip() for cat in category.split(",") if cat.strip()]
+                if not categories:
+                    categories = ["未分類"]
+                
                 st.session_state.encyclopedia[title] = {
-                    "category": category,
+                    "category": categories,
                     "content": content,
                     "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
@@ -122,9 +140,16 @@ elif menu == "📝 記事を編集":
         if article_to_edit:
             current_data = st.session_state.encyclopedia[article_to_edit]
             
+            # カテゴリーをリストから文字列に変換
+            current_categories = current_data.get("category", [])
+            if isinstance(current_categories, list):
+                category_str = ", ".join(current_categories)
+            else:
+                category_str = current_categories
+            
             with st.form("edit_article"):
                 new_title = st.text_input("📝 記事タイトル", value=article_to_edit)
-                new_category = st.text_input("🏷️ カテゴリー", value=current_data.get("category", ""))
+                new_category = st.text_input("🏷️ カテゴリー", value=category_str, placeholder="カンマ区切りで複数指定可能")
                 new_content = st.text_area("✍️ 記事内容", value=current_data.get("content", ""), height=300)
                 
                 submitted = st.form_submit_button("💾 更新を保存")
@@ -135,13 +160,18 @@ elif menu == "📝 記事を編集":
                     elif not new_content:
                         st.error("記事内容を入力してください")
                     else:
+                        # カテゴリーをリスト形式に変換
+                        categories = [cat.strip() for cat in new_category.split(",") if cat.strip()]
+                        if not categories:
+                            categories = ["未分類"]
+                        
                         # 古いタイトルのデータを削除
                         if new_title != article_to_edit:
                             del st.session_state.encyclopedia[article_to_edit]
                         
                         # 新しいデータを保存
                         st.session_state.encyclopedia[new_title] = {
-                            "category": new_category,
+                            "category": categories,
                             "content": new_content,
                             "created": current_data.get("created", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
                             "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -196,8 +226,12 @@ elif menu == "📊 統計情報":
         
         category_count = {}
         for article in st.session_state.encyclopedia.values():
-            cat = article.get("category", "未分類")
-            category_count[cat] = category_count.get(cat, 0) + 1
+            cats = article.get("category", ["未分類"])
+            if isinstance(cats, list):
+                for cat in cats:
+                    category_count[cat] = category_count.get(cat, 0) + 1
+            else:
+                category_count[cats] = category_count.get(cats, 0) + 1
         
         for cat, count in sorted(category_count.items(), key=lambda x: x[1], reverse=True):
             st.write(f"**{cat}**: {count}件")
