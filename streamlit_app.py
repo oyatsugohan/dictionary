@@ -103,8 +103,8 @@ elif menu == "➕ 新規記事作成":
     st.header("新規記事作成")
     
     with st.form("new_article"):
-        title = st.text_input("📝 記事タイトル", placeholder="例: Python")
-        category = st.text_input("🏷️ カテゴリー", placeholder="例: プログラミング言語, 技術 (カンマ区切りで複数指定可能)")
+        title = st.text_input("📝 記事タイトル", placeholder="例: あ")
+        category = st.text_input("🏷️ カテゴリー", placeholder="例: 文字, 日本語 (カンマ区切りで複数指定可能)")
         content = st.text_area("✍️ 記事内容", height=300, placeholder="記事の内容を入力してください...")
         
         submitted = st.form_submit_button("✅ 記事を保存")
