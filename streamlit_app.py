@@ -35,12 +35,16 @@ with st.sidebar:
     menu = st.radio("機能を選択", ["🔍 記事を検索", "➕ 新規記事作成", "📝 記事を編集", "🗑️ 記事を削除", "📊 統計情報"])
     
     st.markdown("---")
-    st.subheader("📖 登録済み記事一覧")
-    if st.session_state.encyclopedia:
-        for title in sorted(st.session_state.encyclopedia.keys()):
-            st.text(f"• {title}")
-    else:
-        st.info("まだ記事がありません")
+    
+    # 記事一覧の表示/非表示
+    show_list = st.checkbox("📖 登録済み記事一覧を表示", value=True)
+    
+    if show_list:
+        if st.session_state.encyclopedia:
+            for title in sorted(st.session_state.encyclopedia.keys()):
+                st.text(f"• {title}")
+        else:
+            st.info("まだ記事がありません")
 
 # メイン画面
 if menu == "🔍 記事を検索":
@@ -86,8 +90,8 @@ elif menu == "➕ 新規記事作成":
     st.header("新規記事作成")
     
     with st.form("new_article"):
-        title = st.text_input("📝 記事タイトル", placeholder="例: あ")
-        category = st.text_input("🏷️ カテゴリー", placeholder="例: 文字")
+        title = st.text_input("📝 記事タイトル", placeholder="例: Python")
+        category = st.text_input("🏷️ カテゴリー", placeholder="例: プログラミング言語")
         content = st.text_area("✍️ 記事内容", height=300, placeholder="記事の内容を入力してください...")
         
         submitted = st.form_submit_button("✅ 記事を保存")
