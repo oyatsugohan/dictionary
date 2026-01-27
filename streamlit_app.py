@@ -2,7 +2,10 @@ import streamlit as st
 import json
 import os
 import hashlib
+import base64
 from datetime import datetime
+from io import BytesIO
+from PIL import Image
 
 # ファイルパス
 USERS_FILE = "users_data.json"
@@ -10,6 +13,20 @@ USERS_FILE = "users_data.json"
 # パスワードのハッシュ化
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
+# 画像をBase64エンコード
+def encode_image(image_file):
+    """アップロードされた画像をBase64文字列に変換"""
+    if image_file is not None:
+        return base64.b64encode(image_file.read()).decode()
+    return None
+
+# Base64文字列を画像に変換
+def decode_image(base64_string):
+    """Base64文字列を画像に変換"""
+    if base64_string:
+        return Image.open(BytesIO(base64.b64decode(base64_string)))
+    return None
 
 # ユーザーデータの読み込み
 def load_users():
@@ -184,6 +201,14 @@ else:
                         st.markdown(f"**カテゴリー:** {category_display}")
                         st.markdown(f"**作成日:** {content.get('created', '不明')}")
                         st.markdown("---")
+                        
+                        # 画像を表示
+                        if content.get('image'):
+                            img = decode_image(content['image'])
+                            if img:
+                                st.image(img, caption=f"{title}の画像", use_container_width=True)
+                                st.markdown("---")
+                        
                         st.text(content.get('content', ''))
             else:
                 st.warning("該当する記事が見つかりませんでした")
@@ -196,6 +221,12 @@ else:
         with st.form("new_article"):
             title = st.text_input("📝 記事タイトル", placeholder="例: Python")
             category = st.text_input("🏷️ カテゴリー", placeholder="例: プログラミング言語, 技術 (カンマ区切りで複数指定可能)")
+            
+            # 画像アップロード
+            uploaded_image = st.file_uploader("🖼️ 画像を追加（任意）", type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
+            if uploaded_image:
+                st.image(uploaded_image, caption="プレビュー", use_container_width=True)
+            
             content = st.text_area("✍️ 記事内容", height=300, placeholder="記事の内容を入力してください...")
             
             submitted = st.form_submit_button("✅ 記事を保存")
@@ -213,9 +244,16 @@ else:
                     if not categories:
                         categories = ["未分類"]
                     
+                    # 画像をエンコード
+                    image_data = None
+                    if uploaded_image:
+                        uploaded_image.seek(0)  # ファイルポインタを先頭に戻す
+                        image_data = encode_image(uploaded_image)
+                    
                     st.session_state.encyclopedia[title] = {
                         "category": categories,
                         "content": content,
+                        "image": image_data,
                         "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     }
                     save_user_encyclopedia(st.session_state.username, st.session_state.encyclopedia)
@@ -241,6 +279,23 @@ else:
                 with st.form("edit_article"):
                     new_title = st.text_input("📝 記事タイトル", value=article_to_edit)
                     new_category = st.text_input("🏷️ カテゴリー", value=category_str, placeholder="カンマ区切りで複数指定可能")
+                    
+                    # 既存の画像を表示
+                    if current_data.get('image'):
+                        st.write("**現在の画像:**")
+                        current_img = decode_image(current_data['image'])
+                        if current_img:
+                            st.image(current_img, caption="現在の画像", use_container_width=True)
+                    
+                    # 画像の更新
+                    uploaded_image = st.file_uploader("🖼️ 新しい画像をアップロード（任意・空欄の場合は既存の画像を保持）", 
+                                                     type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
+                    if uploaded_image:
+                        st.image(uploaded_image, caption="新しい画像のプレビュー", use_container_width=True)
+                    
+                    # 画像削除オプション
+                    delete_image = st.checkbox("🗑️ 画像を削除する")
+                    
                     new_content = st.text_area("✍️ 記事内容", value=current_data.get("content", ""), height=300)
                     
                     submitted = st.form_submit_button("💾 更新を保存")
@@ -256,6 +311,15 @@ else:
                             if not categories:
                                 categories = ["未分類"]
                             
+                            # 画像の処理
+                            image_data = current_data.get('image')  # 既存の画像を保持
+                            
+                            if delete_image:
+                                image_data = None  # 画像を削除
+                            elif uploaded_image:
+                                uploaded_image.seek(0)
+                                image_data = encode_image(uploaded_image)  # 新しい画像に更新
+                            
                             # 古いタイトルのデータを削除
                             if new_title != article_to_edit:
                                 del st.session_state.encyclopedia[article_to_edit]
@@ -264,6 +328,7 @@ else:
                             st.session_state.encyclopedia[new_title] = {
                                 "category": categories,
                                 "content": new_content,
+                                "image": image_data,
                                 "created": current_data.get("created", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
                                 "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             }
@@ -282,6 +347,13 @@ else:
             if article_to_delete:
                 st.warning(f"本当に「{article_to_delete}」を削除しますか？")
                 
+                # プレビュー表示
+                preview_data = st.session_state.encyclopedia[article_to_delete]
+                if preview_data.get('image'):
+                    img = decode_image(preview_data['image'])
+                    if img:
+                        st.image(img, caption="この画像も削除されます", width=200)
+                
                 col1, col2 = st.columns([1, 4])
                 with col1:
                     if st.button("🗑️ 削除", type="primary"):
@@ -298,7 +370,7 @@ else:
         st.header("統計情報")
         
         if st.session_state.encyclopedia:
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
                 st.metric("📚 総記事数", len(st.session_state.encyclopedia))
@@ -316,6 +388,10 @@ else:
             with col3:
                 total_chars = sum(len(v.get("content", "")) for v in st.session_state.encyclopedia.values())
                 st.metric("✍️ 総文字数", f"{total_chars:,}")
+            
+            with col4:
+                image_count = sum(1 for v in st.session_state.encyclopedia.values() if v.get("image"))
+                st.metric("🖼️ 画像付き記事", image_count)
             
             st.markdown("---")
             st.subheader("カテゴリー別記事数")
