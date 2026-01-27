@@ -42,7 +42,7 @@ def resize_image_by_height(image, target_height):
 
 # 記事内容から他の記事タイトルを検出してリンク化
 def create_article_links(content, all_titles, current_title):
-    """記事内容に含まれる他の記事タイトルをハイライト"""
+    """記事内容に含まれる他の記事タイトルをハイライト（改行を保持）"""
     linked_content = content
     # 現在の記事以外のタイトルを検索（長いタイトルから順に処理して部分一致を防ぐ）
     sorted_titles = sorted([t for t in all_titles if t != current_title], key=len, reverse=True)
@@ -51,6 +51,9 @@ def create_article_links(content, all_titles, current_title):
         if title in linked_content:
             # タイトルを太字でハイライト
             linked_content = linked_content.replace(title, f"**{title}**")
+    
+    # 改行を<br>タグに変換してMarkdownで正しく表示
+    linked_content = linked_content.replace('\n', '  \n')
     
     return linked_content
 
