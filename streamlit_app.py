@@ -202,11 +202,11 @@ else:
                         st.markdown(f"**作成日:** {content.get('created', '不明')}")
                         st.markdown("---")
                         
-                        # 画像を表示
+                        # 画像を表示（幅400pxに制限）
                         if content.get('image'):
                             img = decode_image(content['image'])
                             if img:
-                                st.image(img, caption=f"{title}の画像", use_container_width=True)
+                                st.image(img, caption=f"{title}の画像", width=400)
                                 st.markdown("---")
                         
                         st.text(content.get('content', ''))
@@ -225,7 +225,7 @@ else:
             # 画像アップロード
             uploaded_image = st.file_uploader("🖼️ 画像を追加（任意）", type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
             if uploaded_image:
-                st.image(uploaded_image, caption="プレビュー", use_container_width=True)
+                st.image(uploaded_image, caption="プレビュー", width=300)
             
             content = st.text_area("✍️ 記事内容", height=300, placeholder="記事の内容を入力してください...")
             
@@ -280,18 +280,18 @@ else:
                     new_title = st.text_input("📝 記事タイトル", value=article_to_edit)
                     new_category = st.text_input("🏷️ カテゴリー", value=category_str, placeholder="カンマ区切りで複数指定可能")
                     
-                    # 既存の画像を表示
+                    # 既存の画像を表示（幅300pxに制限）
                     if current_data.get('image'):
                         st.write("**現在の画像:**")
                         current_img = decode_image(current_data['image'])
                         if current_img:
-                            st.image(current_img, caption="現在の画像", use_container_width=True)
+                            st.image(current_img, caption="現在の画像", width=300)
                     
                     # 画像の更新
                     uploaded_image = st.file_uploader("🖼️ 新しい画像をアップロード（任意・空欄の場合は既存の画像を保持）", 
                                                      type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
                     if uploaded_image:
-                        st.image(uploaded_image, caption="新しい画像のプレビュー", use_container_width=True)
+                        st.image(uploaded_image, caption="新しい画像のプレビュー", width=300)
                     
                     # 画像削除オプション
                     delete_image = st.checkbox("🗑️ 画像を削除する")
@@ -347,7 +347,7 @@ else:
             if article_to_delete:
                 st.warning(f"本当に「{article_to_delete}」を削除しますか？")
                 
-                # プレビュー表示
+                # プレビュー表示（幅200pxに制限）
                 preview_data = st.session_state.encyclopedia[article_to_delete]
                 if preview_data.get('image'):
                     img = decode_image(preview_data['image'])
