@@ -16,9 +16,28 @@ def hash_password(password):
 
 # 画像をBase64エンコード
 def encode_image(image_file):
-    """アップロードされた画像をBase64文字列に変換"""
+    """アップロードされた画像を高品質なBase64文字列に変換"""
     if image_file is not None:
-        return base64.b64encode(image_file.read()).decode()
+        # PILで画像を開く
+        img = Image.open(image_file)
+        
+        # 画像を適度なサイズにリサイズ（幅800px程度に制限して容量削減）
+        max_width = 800
+        if img.width > max_width:
+            ratio = max_width / img.width
+            new_height = int(img.height * ratio)
+            img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+        
+        # 高品質でバイトストリームに保存
+        buffered = BytesIO()
+        # 画像形式を保持（JPEG, PNGなど）
+        img_format = img.format if img.format else 'PNG'
+        if img_format == 'JPEG':
+            img.save(buffered, format=img_format, quality=95, optimize=True)
+        else:
+            img.save(buffered, format=img_format, optimize=True)
+        
+        return base64.b64encode(buffered.getvalue()).decode()
     return None
 
 # Base64文字列を画像に変換
@@ -26,18 +45,6 @@ def decode_image(base64_string):
     """Base64文字列を画像に変換"""
     if base64_string:
         return Image.open(BytesIO(base64.b64decode(base64_string)))
-    return None
-
-# 画像を指定した高さにリサイズ
-def resize_image_by_height(image, target_height):
-    """画像をアスペクト比を保ったまま指定した高さにリサイズ"""
-    if image:
-        # アスペクト比を計算
-        aspect_ratio = image.width / image.height
-        new_width = int(target_height * aspect_ratio)
-        # リサイズ
-        resized = image.resize((new_width, target_height), Image.Resampling.LANCZOS)
-        return resized
     return None
 
 # 記事内容から他の記事タイトルを検出してリンク化
@@ -250,8 +257,7 @@ else:
                     if content.get('image'):
                         img = decode_image(content['image'])
                         if img:
-                            resized_img = resize_image_by_height(img, 50)
-                            st.image(resized_img, caption=f"{st.session_state.selected_article}の画像")
+                            st.image(img, caption=f"{st.session_state.selected_article}の画像", width=150)
                     
                     st.markdown("---")
                     
@@ -297,9 +303,7 @@ else:
             # 画像アップロード
             uploaded_image = st.file_uploader("🖼️ 画像を追加（任意）", type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
             if uploaded_image:
-                preview_img = Image.open(uploaded_image)
-                resized_preview = resize_image_by_height(preview_img, 50)
-                st.image(resized_preview, caption="プレビュー")
+                st.image(uploaded_image, caption="プレビュー", width=150)
             
             content = st.text_area("✍️ 記事内容", height=300, placeholder="記事の内容を入力してください...")
             
@@ -354,21 +358,18 @@ else:
                     new_title = st.text_input("📝 記事タイトル", value=article_to_edit)
                     new_category = st.text_input("🏷️ カテゴリー", value=category_str, placeholder="カンマ区切りで複数指定可能")
                     
-                    # 既存の画像を表示（高さ50pxに制限）
+                    # 既存の画像を表示
                     if current_data.get('image'):
                         st.write("**現在の画像:**")
                         current_img = decode_image(current_data['image'])
                         if current_img:
-                            resized_current = resize_image_by_height(current_img, 50)
-                            st.image(resized_current, caption="現在の画像")
+                            st.image(current_img, caption="現在の画像", width=150)
                     
                     # 画像の更新
                     uploaded_image = st.file_uploader("🖼️ 新しい画像をアップロード（任意・空欄の場合は既存の画像を保持）", 
                                                      type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
                     if uploaded_image:
-                        new_preview_img = Image.open(uploaded_image)
-                        resized_new_preview = resize_image_by_height(new_preview_img, 50)
-                        st.image(resized_new_preview, caption="新しい画像のプレビュー")
+                        st.image(uploaded_image, caption="新しい画像のプレビュー", width=150)
                     
                     # 画像削除オプション
                     delete_image = st.checkbox("🗑️ 画像を削除する")
@@ -424,13 +425,12 @@ else:
             if article_to_delete:
                 st.warning(f"本当に「{article_to_delete}」を削除しますか？")
                 
-                # プレビュー表示（高さ50pxに制限）
+                # プレビュー表示
                 preview_data = st.session_state.encyclopedia[article_to_delete]
                 if preview_data.get('image'):
                     img = decode_image(preview_data['image'])
                     if img:
-                        resized_delete_preview = resize_image_by_height(img, 50)
-                        st.image(resized_delete_preview, caption="この画像も削除されます")
+                        st.image(img, caption="この画像も削除されます", width=150)
                 
                 col1, col2 = st.columns([1, 4])
                 with col1:
