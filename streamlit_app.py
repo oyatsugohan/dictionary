@@ -357,91 +357,127 @@ else:
         st.header("記事を編集")
         
         if st.session_state.encyclopedia:
-            article_to_edit = st.selectbox("編集する記事を選択", sorted(st.session_state.encyclopedia.keys()))
+            # 検索機能の追加
+            col1, col2 = st.columns(2)
+            with col1:
+                search_edit = st.text_input("🔎 記事を検索", placeholder="記事のタイトルで絞り込み", key="search_edit")
+            with col2:
+                # カテゴリー一覧を取得
+                all_categories = set()
+                for article in st.session_state.encyclopedia.values():
+                    cats = article.get("category", ["未分類"])
+                    if isinstance(cats, list):
+                        all_categories.update(cats)
+                    else:
+                        all_categories.add(cats)
+                category_filter = st.selectbox("🏷️ カテゴリーで絞り込み", ["すべて"] + sorted(all_categories), key="category_edit")
             
-            if article_to_edit:
-                current_data = st.session_state.encyclopedia[article_to_edit]
+            # 検索結果のフィルタリング
+            filtered_articles = list(st.session_state.encyclopedia.keys())
+            
+            # キーワード検索
+            if search_edit:
+                filtered_articles = [k for k in filtered_articles 
+                                   if search_edit.lower() in k.lower()]
+            
+            # カテゴリーで絞り込み
+            if category_filter != "すべて":
+                filtered_articles = [k for k in filtered_articles
+                                   if category_filter in (st.session_state.encyclopedia[k].get("category", ["未分類"]) 
+                                   if isinstance(st.session_state.encyclopedia[k].get("category", []), list) 
+                                   else [st.session_state.encyclopedia[k].get("category", "未分類")])]
+            
+            if not filtered_articles:
+                st.warning("該当する記事が見つかりませんでした")
+            else:
+                if search_edit or category_filter != "すべて":
+                    st.success(f"{len(filtered_articles)}件の記事が見つかりました")
                 
-                # カテゴリーをリストから文字列に変換
-                current_categories = current_data.get("category", [])
-                if isinstance(current_categories, list):
-                    category_str = ", ".join(current_categories)
-                else:
-                    category_str = current_categories
-                
-                with st.form("edit_article"):
-                    new_title = st.text_input("📝 記事タイトル", value=article_to_edit)
-                    new_category = st.text_input("🏷️ カテゴリー", value=category_str, placeholder="カンマ区切りで複数指定可能")
+                article_to_edit = st.selectbox("編集する記事を選択", sorted(filtered_articles))
+            
+                if article_to_edit:
+                    current_data = st.session_state.encyclopedia[article_to_edit]
                     
-                    # 既存の画像を表示（複数対応）
-                    existing_images = current_data.get('images', [])
-                    if existing_images:
-                        st.write(f"**現在の画像: {len(existing_images)}枚**")
-                        current_img_cols = st.columns(min(len(existing_images), 3))
-                        for idx, img_data in enumerate(existing_images):
-                            current_img = decode_image(img_data)
-                            if current_img:
-                                with current_img_cols[idx % 3]:
-                                    st.image(current_img, caption=f"画像 {idx + 1}", width=150)
+                    # カテゴリーをリストから文字列に変換
+                    current_categories = current_data.get("category", [])
+                    if isinstance(current_categories, list):
+                        category_str = ", ".join(current_categories)
+                    else:
+                        category_str = current_categories
                     
-                    # 画像の更新（複数対応）
-                    uploaded_images = st.file_uploader("🖼️ 新しい画像をアップロード（任意・複数選択可・空欄の場合は既存の画像を保持）", 
-                                                     type=['png', 'jpg', 'jpeg', 'gif', 'webp'],
-                                                     accept_multiple_files=True)
-                    if uploaded_images:
-                        st.write(f"**新しい画像: {len(uploaded_images)}枚**")
-                        new_img_cols = st.columns(min(len(uploaded_images), 3))
-                        for idx, img_file in enumerate(uploaded_images):
-                            with new_img_cols[idx % 3]:
-                                st.image(img_file, caption=f"新しい画像 {idx + 1}", width=150)
-                    
-                    # 画像削除オプション
-                    delete_images = st.checkbox("🗑️ すべての画像を削除する")
-                    
-                    new_content = st.text_area("✍️ 記事内容", value=current_data.get("content", ""), height=300)
-                    
-                    submitted = st.form_submit_button("💾 更新を保存")
-                    
-                    if submitted:
-                        if not new_title:
-                            st.error("タイトルを入力してください")
-                        elif not new_content:
-                            st.error("記事内容を入力してください")
-                        else:
-                            # カテゴリーをリスト形式に変換
-                            categories = [cat.strip() for cat in new_category.split(",") if cat.strip()]
-                            if not categories:
-                                categories = ["未分類"]
-                            
-                            # 画像の処理（複数対応）
-                            images_data = current_data.get('images', [])  # 既存の画像を保持
-                            
-                            if delete_images:
-                                images_data = []  # すべての画像を削除
-                            elif uploaded_images:
-                                # 新しい画像に更新
-                                images_data = []
-                                for img_file in uploaded_images:
-                                    img_file.seek(0)
-                                    encoded = encode_image(img_file)
-                                    if encoded:
-                                        images_data.append(encoded)
-                            
-                            # 古いタイトルのデータを削除
-                            if new_title != article_to_edit:
-                                del st.session_state.encyclopedia[article_to_edit]
-                            
-                            # 新しいデータを保存
-                            st.session_state.encyclopedia[new_title] = {
-                                "category": categories,
-                                "content": new_content,
-                                "images": images_data,
-                                "created": current_data.get("created", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-                                "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            }
-                            save_user_encyclopedia(st.session_state.username, st.session_state.encyclopedia)
-                            st.success(f"✅ 記事「{new_title}」を更新しました！")
-                            st.rerun()
+                    with st.form("edit_article"):
+                        new_title = st.text_input("📝 記事タイトル", value=article_to_edit)
+                        new_category = st.text_input("🏷️ カテゴリー", value=category_str, placeholder="カンマ区切りで複数指定可能")
+                        
+                        # 既存の画像を表示（複数対応）
+                        existing_images = current_data.get('images', [])
+                        if existing_images:
+                            st.write(f"**現在の画像: {len(existing_images)}枚**")
+                            current_img_cols = st.columns(min(len(existing_images), 3))
+                            for idx, img_data in enumerate(existing_images):
+                                current_img = decode_image(img_data)
+                                if current_img:
+                                    with current_img_cols[idx % 3]:
+                                        st.image(current_img, caption=f"画像 {idx + 1}", width=150)
+                        
+                        # 画像の更新（複数対応）
+                        uploaded_images = st.file_uploader("🖼️ 新しい画像をアップロード（任意・複数選択可・空欄の場合は既存の画像を保持）", 
+                                                         type=['png', 'jpg', 'jpeg', 'gif', 'webp'],
+                                                         accept_multiple_files=True)
+                        if uploaded_images:
+                            st.write(f"**新しい画像: {len(uploaded_images)}枚**")
+                            new_img_cols = st.columns(min(len(uploaded_images), 3))
+                            for idx, img_file in enumerate(uploaded_images):
+                                with new_img_cols[idx % 3]:
+                                    st.image(img_file, caption=f"新しい画像 {idx + 1}", width=150)
+                        
+                        # 画像削除オプション
+                        delete_images = st.checkbox("🗑️ すべての画像を削除する")
+                        
+                        new_content = st.text_area("✍️ 記事内容", value=current_data.get("content", ""), height=300)
+                        
+                        submitted = st.form_submit_button("💾 更新を保存")
+                        
+                        if submitted:
+                            if not new_title:
+                                st.error("タイトルを入力してください")
+                            elif not new_content:
+                                st.error("記事内容を入力してください")
+                            else:
+                                # カテゴリーをリスト形式に変換
+                                categories = [cat.strip() for cat in new_category.split(",") if cat.strip()]
+                                if not categories:
+                                    categories = ["未分類"]
+                                
+                                # 画像の処理（複数対応）
+                                images_data = current_data.get('images', [])  # 既存の画像を保持
+                                
+                                if delete_images:
+                                    images_data = []  # すべての画像を削除
+                                elif uploaded_images:
+                                    # 新しい画像に更新
+                                    images_data = []
+                                    for img_file in uploaded_images:
+                                        img_file.seek(0)
+                                        encoded = encode_image(img_file)
+                                        if encoded:
+                                            images_data.append(encoded)
+                                
+                                # 古いタイトルのデータを削除
+                                if new_title != article_to_edit:
+                                    del st.session_state.encyclopedia[article_to_edit]
+                                
+                                # 新しいデータを保存
+                                st.session_state.encyclopedia[new_title] = {
+                                    "category": categories,
+                                    "content": new_content,
+                                    "images": images_data,
+                                    "created": current_data.get("created", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                                    "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                }
+                                save_user_encyclopedia(st.session_state.username, st.session_state.encyclopedia)
+                                st.success(f"✅ 記事「{new_title}」を更新しました！")
+                                st.rerun()
         else:
             st.info("編集する記事がありません")
     
