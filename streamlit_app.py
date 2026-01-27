@@ -40,6 +40,20 @@ def resize_image_by_height(image, target_height):
         return resized
     return None
 
+# 記事内容から他の記事タイトルを検出してリンク化
+def create_article_links(content, all_titles, current_title):
+    """記事内容に含まれる他の記事タイトルをハイライト"""
+    linked_content = content
+    # 現在の記事以外のタイトルを検索（長いタイトルから順に処理して部分一致を防ぐ）
+    sorted_titles = sorted([t for t in all_titles if t != current_title], key=len, reverse=True)
+    
+    for title in sorted_titles:
+        if title in linked_content:
+            # タイトルを太字でハイライト
+            linked_content = linked_content.replace(title, f"**{title}**")
+    
+    return linked_content
+
 # ユーザーデータの読み込み
 def load_users():
     if os.path.exists(USERS_FILE):
@@ -76,6 +90,8 @@ if "username" not in st.session_state:
     st.session_state.username = None
 if "encyclopedia" not in st.session_state:
     st.session_state.encyclopedia = {}
+if "selected_article" not in st.session_state:
+    st.session_state.selected_article = None
 
 # ログイン/サインアップ画面
 if not st.session_state.logged_in:
@@ -202,27 +218,67 @@ else:
             
             if results:
                 st.success(f"{len(results)}件の記事が見つかりました")
-                for title, content in sorted(results.items()):
-                    with st.expander(f"📄 {title}"):
-                        # カテゴリー表示（リスト形式にも対応）
-                        cats = content.get('category', ['未分類'])
-                        if isinstance(cats, list):
-                            category_display = ", ".join(cats)
-                        else:
-                            category_display = cats
-                        st.markdown(f"**カテゴリー:** {category_display}")
-                        st.markdown(f"**作成日:** {content.get('created', '不明')}")
-                        st.markdown("---")
+                
+                # 記事タイトルボタンを表示
+                st.markdown("### 📋 記事一覧")
+                cols = st.columns(3)
+                for idx, title in enumerate(sorted(results.keys())):
+                    with cols[idx % 3]:
+                        if st.button(f"📄 {title}", key=f"article_btn_{title}", use_container_width=True):
+                            st.session_state.selected_article = title
+                
+                # 選択された記事を表示
+                if st.session_state.selected_article and st.session_state.selected_article in st.session_state.encyclopedia:
+                    st.markdown("---")
+                    st.markdown(f"## 📖 {st.session_state.selected_article}")
+                    
+                    content = st.session_state.encyclopedia[st.session_state.selected_article]
+                    
+                    # カテゴリー表示
+                    cats = content.get('category', ['未分類'])
+                    if isinstance(cats, list):
+                        category_display = ", ".join(cats)
+                    else:
+                        category_display = cats
+                    st.markdown(f"**カテゴリー:** {category_display}")
+                    st.markdown(f"**作成日:** {content.get('created', '不明')}")
+                    
+                    # 画像を表示
+                    if content.get('image'):
+                        img = decode_image(content['image'])
+                        if img:
+                            resized_img = resize_image_by_height(img, 50)
+                            st.image(resized_img, caption=f"{st.session_state.selected_article}の画像")
+                    
+                    st.markdown("---")
+                    
+                    # 記事内容に他の記事へのリンクを作成
+                    article_content = content.get('content', '')
+                    all_titles = list(st.session_state.encyclopedia.keys())
+                    
+                    # 他の記事タイトルを検出してボタン化
+                    st.markdown("### 本文")
+                    
+                    # 記事内容を表示（他の記事タイトルをハイライト）
+                    linked_content = create_article_links(article_content, all_titles, st.session_state.selected_article)
+                    st.markdown(linked_content)
+                    
+                    # 関連記事のボタンを表示
+                    st.markdown("---")
+                    st.markdown("### 🔗 本文中で言及されている記事")
+                    
+                    mentioned_articles = [t for t in all_titles if t != st.session_state.selected_article and t in article_content]
+                    
+                    if mentioned_articles:
+                        link_cols = st.columns(min(len(mentioned_articles), 4))
+                        for idx, mentioned_title in enumerate(mentioned_articles):
+                            with link_cols[idx % len(link_cols)]:
+                                if st.button(f"➡️ {mentioned_title}", key=f"link_{mentioned_title}", use_container_width=True):
+                                    st.session_state.selected_article = mentioned_title
+                                    st.rerun()
+                    else:
+                        st.info("この記事では他の記事への言及はありません")
                         
-                        # 画像を表示（高さ50pxに制限）
-                        if content.get('image'):
-                            img = decode_image(content['image'])
-                            if img:
-                                resized_img = resize_image_by_height(img, 50)
-                                st.image(resized_img, caption=f"{title}の画像")
-                                st.markdown("---")
-                        
-                        st.text(content.get('content', ''))
             else:
                 st.warning("該当する記事が見つかりませんでした")
         else:
