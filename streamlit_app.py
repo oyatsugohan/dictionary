@@ -253,11 +253,17 @@ else:
                     st.markdown(f"**カテゴリー:** {category_display}")
                     st.markdown(f"**作成日:** {content.get('created', '不明')}")
                     
-                    # 画像を表示
-                    if content.get('image'):
-                        img = decode_image(content['image'])
-                        if img:
-                            st.image(img, caption=f"{st.session_state.selected_article}の画像", width=150)
+                    # 画像を表示（複数対応）
+                    images = content.get('images', [])
+                    if images:
+                        st.markdown("**📷 画像:**")
+                        # 画像を横に並べて表示（3列）
+                        img_cols = st.columns(min(len(images), 3))
+                        for idx, img_data in enumerate(images):
+                            img = decode_image(img_data)
+                            if img:
+                                with img_cols[idx % 3]:
+                                    st.image(img, caption=f"画像 {idx + 1}", width=150)
                     
                     st.markdown("---")
                     
@@ -300,10 +306,16 @@ else:
             title = st.text_input("📝 記事タイトル", placeholder="例: Python")
             category = st.text_input("🏷️ カテゴリー", placeholder="例: プログラミング言語, 技術 (カンマ区切りで複数指定可能)")
             
-            # 画像アップロード
-            uploaded_image = st.file_uploader("🖼️ 画像を追加（任意）", type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
-            if uploaded_image:
-                st.image(uploaded_image, caption="プレビュー", width=150)
+            # 画像アップロード（複数対応）
+            uploaded_images = st.file_uploader("🖼️ 画像を追加（任意・複数選択可）", 
+                                              type=['png', 'jpg', 'jpeg', 'gif', 'webp'],
+                                              accept_multiple_files=True)
+            if uploaded_images:
+                st.write(f"**選択された画像: {len(uploaded_images)}枚**")
+                preview_cols = st.columns(min(len(uploaded_images), 3))
+                for idx, img_file in enumerate(uploaded_images):
+                    with preview_cols[idx % 3]:
+                        st.image(img_file, caption=f"画像 {idx + 1}", width=150)
             
             content = st.text_area("✍️ 記事内容", height=300, placeholder="記事の内容を入力してください...")
             
@@ -322,16 +334,19 @@ else:
                     if not categories:
                         categories = ["未分類"]
                     
-                    # 画像をエンコード
-                    image_data = None
-                    if uploaded_image:
-                        uploaded_image.seek(0)  # ファイルポインタを先頭に戻す
-                        image_data = encode_image(uploaded_image)
+                    # 画像をエンコード（複数対応）
+                    images_data = []
+                    if uploaded_images:
+                        for img_file in uploaded_images:
+                            img_file.seek(0)  # ファイルポインタを先頭に戻す
+                            encoded = encode_image(img_file)
+                            if encoded:
+                                images_data.append(encoded)
                     
                     st.session_state.encyclopedia[title] = {
                         "category": categories,
                         "content": content,
-                        "image": image_data,
+                        "images": images_data,
                         "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     }
                     save_user_encyclopedia(st.session_state.username, st.session_state.encyclopedia)
@@ -358,21 +373,30 @@ else:
                     new_title = st.text_input("📝 記事タイトル", value=article_to_edit)
                     new_category = st.text_input("🏷️ カテゴリー", value=category_str, placeholder="カンマ区切りで複数指定可能")
                     
-                    # 既存の画像を表示
-                    if current_data.get('image'):
-                        st.write("**現在の画像:**")
-                        current_img = decode_image(current_data['image'])
-                        if current_img:
-                            st.image(current_img, caption="現在の画像", width=150)
+                    # 既存の画像を表示（複数対応）
+                    existing_images = current_data.get('images', [])
+                    if existing_images:
+                        st.write(f"**現在の画像: {len(existing_images)}枚**")
+                        current_img_cols = st.columns(min(len(existing_images), 3))
+                        for idx, img_data in enumerate(existing_images):
+                            current_img = decode_image(img_data)
+                            if current_img:
+                                with current_img_cols[idx % 3]:
+                                    st.image(current_img, caption=f"画像 {idx + 1}", width=150)
                     
-                    # 画像の更新
-                    uploaded_image = st.file_uploader("🖼️ 新しい画像をアップロード（任意・空欄の場合は既存の画像を保持）", 
-                                                     type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
-                    if uploaded_image:
-                        st.image(uploaded_image, caption="新しい画像のプレビュー", width=150)
+                    # 画像の更新（複数対応）
+                    uploaded_images = st.file_uploader("🖼️ 新しい画像をアップロード（任意・複数選択可・空欄の場合は既存の画像を保持）", 
+                                                     type=['png', 'jpg', 'jpeg', 'gif', 'webp'],
+                                                     accept_multiple_files=True)
+                    if uploaded_images:
+                        st.write(f"**新しい画像: {len(uploaded_images)}枚**")
+                        new_img_cols = st.columns(min(len(uploaded_images), 3))
+                        for idx, img_file in enumerate(uploaded_images):
+                            with new_img_cols[idx % 3]:
+                                st.image(img_file, caption=f"新しい画像 {idx + 1}", width=150)
                     
                     # 画像削除オプション
-                    delete_image = st.checkbox("🗑️ 画像を削除する")
+                    delete_images = st.checkbox("🗑️ すべての画像を削除する")
                     
                     new_content = st.text_area("✍️ 記事内容", value=current_data.get("content", ""), height=300)
                     
@@ -389,14 +413,19 @@ else:
                             if not categories:
                                 categories = ["未分類"]
                             
-                            # 画像の処理
-                            image_data = current_data.get('image')  # 既存の画像を保持
+                            # 画像の処理（複数対応）
+                            images_data = current_data.get('images', [])  # 既存の画像を保持
                             
-                            if delete_image:
-                                image_data = None  # 画像を削除
-                            elif uploaded_image:
-                                uploaded_image.seek(0)
-                                image_data = encode_image(uploaded_image)  # 新しい画像に更新
+                            if delete_images:
+                                images_data = []  # すべての画像を削除
+                            elif uploaded_images:
+                                # 新しい画像に更新
+                                images_data = []
+                                for img_file in uploaded_images:
+                                    img_file.seek(0)
+                                    encoded = encode_image(img_file)
+                                    if encoded:
+                                        images_data.append(encoded)
                             
                             # 古いタイトルのデータを削除
                             if new_title != article_to_edit:
@@ -406,7 +435,7 @@ else:
                             st.session_state.encyclopedia[new_title] = {
                                 "category": categories,
                                 "content": new_content,
-                                "image": image_data,
+                                "images": images_data,
                                 "created": current_data.get("created", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
                                 "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             }
@@ -425,12 +454,17 @@ else:
             if article_to_delete:
                 st.warning(f"本当に「{article_to_delete}」を削除しますか？")
                 
-                # プレビュー表示
+                # プレビュー表示（複数画像対応）
                 preview_data = st.session_state.encyclopedia[article_to_delete]
-                if preview_data.get('image'):
-                    img = decode_image(preview_data['image'])
-                    if img:
-                        st.image(img, caption="この画像も削除されます", width=150)
+                preview_images = preview_data.get('images', [])
+                if preview_images:
+                    st.write(f"**この記事の画像 ({len(preview_images)}枚) も削除されます:**")
+                    del_preview_cols = st.columns(min(len(preview_images), 3))
+                    for idx, img_data in enumerate(preview_images):
+                        img = decode_image(img_data)
+                        if img:
+                            with del_preview_cols[idx % 3]:
+                                st.image(img, caption=f"画像 {idx + 1}", width=150)
                 
                 col1, col2 = st.columns([1, 4])
                 with col1:
@@ -468,8 +502,11 @@ else:
                 st.metric("✍️ 総文字数", f"{total_chars:,}")
             
             with col4:
-                image_count = sum(1 for v in st.session_state.encyclopedia.values() if v.get("image"))
-                st.metric("🖼️ 画像付き記事", image_count)
+                # 画像付き記事数と総画像数を計算
+                articles_with_images = sum(1 for v in st.session_state.encyclopedia.values() if v.get("images"))
+                total_images = sum(len(v.get("images", [])) for v in st.session_state.encyclopedia.values())
+                st.metric("🖼️ 総画像数", total_images)
+                st.caption(f"画像付き記事: {articles_with_images}件")
             
             st.markdown("---")
             st.subheader("カテゴリー別記事数")
