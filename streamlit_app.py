@@ -225,9 +225,9 @@ else:
             # 画像アップロード
             uploaded_image = st.file_uploader("🖼️ 画像を追加（任意）", type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
             if uploaded_image:
-                st.image(uploaded_image, caption="プレビュー", width=300)
+                st.image(uploaded_image, caption="プレビュー", width=100)
             
-            content = st.text_area("✍️ 記事内容", height=300, placeholder="記事の内容を入力してください...")
+            content = st.text_area("✍️ 記事内容", height=100, placeholder="記事の内容を入力してください...")
             
             submitted = st.form_submit_button("✅ 記事を保存")
             
@@ -280,23 +280,23 @@ else:
                     new_title = st.text_input("📝 記事タイトル", value=article_to_edit)
                     new_category = st.text_input("🏷️ カテゴリー", value=category_str, placeholder="カンマ区切りで複数指定可能")
                     
-                    # 既存の画像を表示（幅300pxに制限）
+                    # 既存の画像を表示（幅100pxに制限）
                     if current_data.get('image'):
                         st.write("**現在の画像:**")
                         current_img = decode_image(current_data['image'])
                         if current_img:
-                            st.image(current_img, caption="現在の画像", width=300)
+                            st.image(current_img, caption="現在の画像", width=100)
                     
                     # 画像の更新
                     uploaded_image = st.file_uploader("🖼️ 新しい画像をアップロード（任意・空欄の場合は既存の画像を保持）", 
                                                      type=['png', 'jpg', 'jpeg', 'gif', 'webp'])
                     if uploaded_image:
-                        st.image(uploaded_image, caption="新しい画像のプレビュー", width=300)
+                        st.image(uploaded_image, caption="新しい画像のプレビュー", width=100)
                     
                     # 画像削除オプション
                     delete_image = st.checkbox("🗑️ 画像を削除する")
                     
-                    new_content = st.text_area("✍️ 記事内容", value=current_data.get("content", ""), height=300)
+                    new_content = st.text_area("✍️ 記事内容", value=current_data.get("content", ""), height=100)
                     
                     submitted = st.form_submit_button("💾 更新を保存")
                     
